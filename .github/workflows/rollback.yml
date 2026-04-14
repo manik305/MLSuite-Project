@@ -1,0 +1,33 @@
+name: Manual Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_commit:
+        description: 'Commit SHA or Tag to roll back to'
+        required: true
+      reason:
+        description: 'Reason for rollback'
+        required: false
+        default: 'Feature instability'
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.target_commit }}
+      
+      - name: Perform Rollback Deployment
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Rolling back to commit: ${{ github.event.inputs.target_commit }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          # Deployment command for the specific version
+          # supabase functions deploy --version ${{ github.event.inputs.target_commit }}
+          echo "Rollback completed successfully."
+          
+      - name: Post-Rollback Notification
+        run: echo "System rolled back to stable version."

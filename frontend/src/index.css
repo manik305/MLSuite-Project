@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --color-nebula-background: #0b1323;
+  --color-nebula-surface: #0b1323;
+  --color-nebula-on_surface: #dbe2f8;
+  --color-nebula-on_surface_variant: #bac9cc;
+  --color-nebula-primary: #c3f5ff;
+  --color-nebula-primary_container: #00e5ff;
+  --color-nebula-on_primary: #00363d;
+  --color-nebula-surface_container_lowest: #060e1d;
+  --color-nebula-surface_container_low: #131c2b;
+  --color-nebula-surface_container: #18202f;
+  --color-nebula-surface_container_high: #222a3a;
+  --color-nebula-surface_container_highest: #2d3546;
+  --color-nebula-surface_variant: #2d3546;
+  --color-nebula-outline: #849396;
+  --color-nebula-outline_variant: #3b494c;
+  --color-nebula-error: #ffb4ab;
+  --color-nebula-error_container: #93000a;
+
+  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "Manrope", monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-nebula-background text-nebula-on_surface font-sans antialiased overflow-x-hidden;
+  }
+}
+
+@utility btn-primary {
+  @apply bg-gradient-to-br from-nebula-primary to-nebula-primary_container text-nebula-on_primary 
+         px-6 py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2;
+}
+
+@utility btn-secondary {
+  @apply bg-transparent text-nebula-primary border border-nebula-outline/30 
+         px-6 py-3 rounded-lg hover:bg-nebula-surface_container_low transition-all flex items-center justify-center gap-2 font-bold;
+}
+
+@utility glass-panel {
+  @apply bg-nebula-surface_variant/60 backdrop-blur-[20px] rounded-xl relative;
+}
+
+@utility input-nebula {
+  @apply w-full bg-nebula-surface_container_lowest text-nebula-on_surface rounded px-4 py-3 outline-none transition-all
+         border border-nebula-outline_variant/20 focus:border-nebula-primary;
+}
+
+@utility data-label {
+  @apply font-mono text-nebula-on_surface_variant text-sm tracking-wide;
+}
+
+@utility nebula-glow {
+  @apply shadow-[0_20px_40px_rgba(0,218,243,0.08)];
+}

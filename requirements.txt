@@ -1,0 +1,24 @@
+# --- MLSuite Required Backend Documents ---
+# 1. backend/main.py
+# 2. backend/auth.py
+# 3. backend/__init__.py
+# 4. ML/data_loader.py
+# 5. ML/preprocessor.py
+# 6. ML/eda_engine.py
+# 7. ML/tuner.py
+# 8. ML/models/regression.py
+# 9. ML/models/classification.py
+# 10. ML/models/__init__.py
+# 11. ML/__init__.py
+# 12. .env
+# 13. requirements.txt
+
+fastapi
+uvicorn
+pandas
+scikit-learn
+matplotlib
+pymongo
+pyjwt
+python-dotenv
+openpyxl

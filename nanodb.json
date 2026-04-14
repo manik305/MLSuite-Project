@@ -1,0 +1,20 @@
+{
+    "users": {
+        "manikprabhu98@gmail.com": {
+            "password": "4fdab10ca0a447b62918380d73dbcca040c6cd3fad32461e7a57f01ef62a9778",
+            "role": "admin"
+        },
+        "manikprabhu@gmail.com": {
+            "password": "f97cefaec9f905f3e254067335c67c20e40ed1977c4cb5c7e1cc1b6fe315ff7b",
+            "role": "user"
+        },
+        "manik@gmail.com": {
+            "password": "3b3bee702f820ba15fa0806dc3dac48c1d9e3cb964cc1a1c16fd3ef842131f25",
+            "role": "user"
+        },
+        "test@mlsuite.com": {
+            "password": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+            "role": "admin"
+        }
+    }
+}
