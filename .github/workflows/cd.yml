@@ -10,9 +10,11 @@ on:
       - completed
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: ap-south-2
   ECR_REPOSITORY_BACKEND: mlsuite-backend
   ECR_REPOSITORY_FRONTEND: mlsuite-frontend
+  ECS_CLUSTER: Mlsuit
+  ECS_SERVICE: Mlsuit-Backend-service-kb2kkwzq 
 
 jobs:
   deploy:
