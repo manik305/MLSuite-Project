@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../api/config';
 
 const AuthPage: React.FC<{ onLogin: (token: string, role: string) => void }> = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,7 +13,7 @@ const AuthPage: React.FC<{ onLogin: (token: string, role: string) => void }> = (
     const endpoint = isLogin ? '/login' : '/register';
     
     try {
-      const response = await fetch(`http://localhost:8001${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

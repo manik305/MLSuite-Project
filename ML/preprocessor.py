@@ -11,6 +11,9 @@ class Preprocessor:
         self.label_encoders = {}
 
     def handle_missing_values(self):
+        import numpy as np
+        # Replace infinity with NaN
+        self.df.replace([np.inf, -np.inf], np.nan, inplace=True)
         # Numeric missing values
         num_cols = self.df.select_dtypes(include=['int64', 'float64']).columns
         if not num_cols.empty:
@@ -23,10 +26,13 @@ class Preprocessor:
 
         return self.df
 
-    def standardize(self):
+    def standardize(self, exclude_cols=None):
         # Numerical columns scale
         num_cols = self.df.select_dtypes(include=['float64', 'int64']).columns
-        if not num_cols.empty:
+        if exclude_cols:
+            num_cols = [c for c in num_cols if c not in exclude_cols]
+            
+        if len(num_cols) > 0:
             self.df[num_cols] = self.scaler.fit_transform(self.df[num_cols])
         return self.df
 
@@ -39,8 +45,24 @@ class Preprocessor:
             self.label_encoders[col] = le
         return self.df
 
-    def process_all(self):
+    def sanitize_column_names(self):
+        import re
+        # Comprehensive sanitization for LightGBM/XGBoost/JSON compatibility
+        # Replace any character that is not alphanumeric or underscore with '_'
+        self.df.columns = [re.sub(r'[^a-zA-Z0-9]', '_', str(col)) for col in self.df.columns]
+        return self.df
+
+    def process_all(self, target_col=None):
+        import re
+        if target_col:
+            # Predict what the sanitized target column name will be
+            new_target_col = re.sub(r'[^a-zA-Z0-9]', '_', str(target_col))
+        else:
+            new_target_col = None
+            
+        self.sanitize_column_names()
         self.handle_missing_values()
         self.encode_categorical()
-        self.standardize()
-        return self.df
+        # Keep target column as is (discrete) for classification/regression targets
+        self.standardize(exclude_cols=[new_target_col] if new_target_col else None)
+        return self.df, new_target_col

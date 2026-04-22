@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
 const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, onLogout }) => {
-  const [view, setView] = useState('ml_flow'); // 'ml_flow' or 'users'
+  const [view, setView] = useState('ml_flow'); // 'ml_flow', 'users', or 'logs'
   const [users, setUsers] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [step, setStep] = useState(1);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,7 +39,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
 
   const fetchModels = async () => {
     try {
-      const response = await fetch(`http://localhost:8001/models?task_type=${taskType}`, {
+      const response = await fetch(`${API_BASE_URL}/models?task_type=${taskType}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -49,7 +52,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:8001/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -59,9 +62,23 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
     }
   };
 
+  const fetchLogs = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/logs`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setLogs(data.logs);
+    } catch (err) {
+      console.error("Failed to fetch logs", err);
+    }
+  };
+
   useEffect(() => {
     if (view === 'users') {
         fetchUsers();
+    } else if (view === 'logs') {
+        fetchLogs();
     }
   }, [view]);
 
@@ -79,7 +96,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
         // First upload the file
         const formData = new FormData();
         formData.append('file', file);
-        const uploadRes = await fetch('http://localhost:8001/upload', {
+        const uploadRes = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
           body: formData,
@@ -96,7 +113,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
       }
       
       // Immediate Analysis (EDI)
-      const analyzeRes = await fetch(`http://localhost:8001/analyze?${queryParams.toString()}`, {
+      const analyzeRes = await fetch(`${API_BASE_URL}/analyze?${queryParams.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await analyzeRes.json();
@@ -138,7 +155,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
             queryParams.append('collection_name', mongoConfig.collection_name);
         }
 
-        const response = await fetch(`http://localhost:8001/train?${queryParams.toString()}`, {
+        const response = await fetch(`${API_BASE_URL}/train?${queryParams.toString()}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -166,7 +183,6 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
             <span className="text-xl">M</span>
           </div>
           <div>
-          <div>
             <h1 className="text-2xl font-display font-medium text-nebula-on_surface tracking-tighter uppercase">MLSUITE / ADMIN CONSOLE</h1>
             <p className="text-[10px] font-mono text-nebula-primary tracking-[0.2em] font-bold mt-1 opacity-80 uppercase">{view === 'ml_flow' ? `Step ${step}: ${step === 1 ? 'Injection' : step === 2 ? 'Discovery' : step === 3 ? 'Refinement' : 'Intelligence'}` : 'User Identity Management'}</p>
           </div>
@@ -184,6 +200,12 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                 className={`px-4 py-2 text-[10px] font-mono font-bold uppercase tracking-widest rounded transition-all ${view === 'users' ? 'bg-nebula-primary text-nebula-on_primary' : 'text-nebula-outline'}`}
             >
                 Users
+            </button>
+            <button 
+                onClick={() => setView('logs')} 
+                className={`px-4 py-2 text-[10px] font-mono font-bold uppercase tracking-widest rounded transition-all ${view === 'logs' ? 'bg-nebula-primary text-nebula-on_primary' : 'text-nebula-outline'}`}
+            >
+                Activity Log
             </button>
           </div>
           <button onClick={onLogout} className="btn-secondary text-[10px] uppercase font-bold tracking-[0.2em] px-4 py-2 border-nebula-outline/10 hover:text-nebula-error">
@@ -225,6 +247,46 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                                             <span className="text-[10px] font-mono font-bold uppercase tracking-widest">Active</span>
                                         </span>
                                     </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+
+        {view === 'logs' && (
+            <div className="w-full max-w-6xl space-y-12 py-10 animate-fade-in relative z-20">
+                 <div className="text-center space-y-4">
+                    <h2 className="text-6xl font-display font-medium tracking-tightest leading-tight">Neural <span className="italic opacity-40">Activity.</span></h2>
+                    <p className="text-nebula-on_surface_variant text-lg opacity-70">Complete audit trail of models trained and data processed across the ecosystem.</p>
+                </div>
+
+                <div className="bg-white/[0.02] backdrop-blur-3xl p-8 rounded-2xl border border-white/5 shadow-2xl overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-white/5">
+                                <th className="pb-6 text-[10px] font-mono text-nebula-outline uppercase tracking-[0.2em]">Timestamp</th>
+                                <th className="pb-6 text-[10px] font-mono text-nebula-outline uppercase tracking-[0.2em]">Operator</th>
+                                <th className="pb-6 text-[10px] font-mono text-nebula-outline uppercase tracking-[0.2em]">Model Engine</th>
+                                <th className="pb-6 text-[10px] font-mono text-nebula-outline uppercase tracking-[0.2em] text-center">Task Type</th>
+                                <th className="pb-6 text-[10px] font-mono text-nebula-outline uppercase tracking-[0.2em] text-right">Data Size</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/[0.05]">
+                            {logs.map((log, index) => (
+                                <tr key={index} className="group hover:bg-white/[0.02] transition-colors">
+                                    <td className="py-6 font-mono text-[11px] text-nebula-primary opacity-60 font-bold">{log.timestamp}</td>
+                                    <td className="py-6 text-sm font-medium text-nebula-on_surface">{log.email}</td>
+                                    <td className="py-6">
+                                        <span className="px-3 py-1 bg-nebula-primary/10 text-nebula-primary border border-nebula-primary/20 rounded text-[9px] uppercase font-mono font-bold tracking-widest">
+                                            {log.model_name}
+                                        </span>
+                                    </td>
+                                    <td className="py-6 text-center">
+                                        <span className="text-[10px] px-2 py-0.5 rounded border border-white/5 text-nebula-outline uppercase tracking-widest font-bold">{log.task_type}</span>
+                                    </td>
+                                    <td className="py-6 text-right font-mono text-nebula-primary font-bold">{log.data_size?.toLocaleString() || '0'} rows</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -399,12 +461,12 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                 <div key={plot} className="group relative overflow-hidden bg-nebula-surface_container rounded-xl transition-all duration-700 hover:-translate-y-2 border border-white/5">
                   <div className="p-5 flex justify-between items-center bg-nebula-surface_container_high bg-opacity-50">
                       <span className="text-[9px] font-mono font-bold text-nebula-outline uppercase tracking-[0.3em]">{plot.split('_')[0]} Spectral Plot</span>
-                      <div onClick={() => window.open(`http://localhost:8001/static/plots/${plot}`, '_blank')} className="w-8 h-8 rounded-lg bg-nebula-surface_container_lowest flex items-center justify-center text-nebula-outline hover:text-nebula-primary transition-all">
+                      <div onClick={() => window.open(`${API_BASE_URL}/static/plots/${plot}`, '_blank')} className="w-8 h-8 rounded-lg bg-nebula-surface_container_lowest flex items-center justify-center text-nebula-outline hover:text-nebula-primary transition-all">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                       </div>
                   </div>
                   <div className="p-4 bg-[#0b1323]">
-                    <img src={`http://localhost:8001/static/plots/${plot}?t=${Date.now()}`} alt="EDA" className="w-full h-auto rounded" />
+                    <img src={`${API_BASE_URL}/static/plots/${plot}?t=${Date.now()}`} alt="EDA" className="w-full h-auto rounded" />
                   </div>
                 </div>
               ))}
@@ -427,18 +489,20 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Architectural Task</label>
                     <div className="flex gap-2 p-1 bg-nebula-surface_container_low rounded-lg">
-                      {['classification', 'regression'].map((type) => (
+                      {['classification', 'regression', 'clustering'].map((type) => (
                         <button key={type} onClick={() => setTaskType(type)} className={`flex-1 py-4 rounded text-[10px] font-mono font-bold uppercase tracking-widest transition-all ${taskType === type ? 'bg-nebula-primary text-nebula-on_primary shadow-lg' : 'text-nebula-on_surface_variant'}`}>{type}</button>
                       ))}
                     </div>
                   </div>
 
+                  {taskType !== 'clustering' && (
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Target Dimension</label>
                     <select value={targetColumn} onChange={(e) => setTargetColumn(e.target.value)} className="input-nebula w-full font-mono text-xs">
                       {availableColumns.map(col => <option key={col} value={col}>{col}</option>)}
                     </select>
                   </div>
+                  )}
 
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Cognitive Model</label>
@@ -498,7 +562,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                       </div>
                       <div className="pt-10">
                         <img 
-                          src={`http://localhost:8001/static/plots/data_composition_pie.png?t=${Date.now()}`} 
+                          src={`${API_BASE_URL}/static/plots/data_composition_pie.png?t=${Date.now()}`} 
                           alt="Composition" 
                           className="w-full h-auto rounded-lg shadow-inner scale-110 pointer-events-none" 
                         />
@@ -594,7 +658,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                              {results.model_url && (
                                 <div className="pt-12 flex justify-between items-center border-t border-white/5">
                                     <p className="text-[9px] font-mono text-nebula-outline uppercase tracking-widest italic opacity-50">Weights exported to kernel vault.</p>
-                                    <a href={`http://localhost:8001${results.model_url}`} download className="px-8 py-4 bg-nebula-primary text-nebula-on_primary rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest shadow-2xl transition-all hover:scale-105 active:scale-95">Download Model (.pkl)</a>
+                                    <a href={`${API_BASE_URL}${results.model_url}`} download className="px-8 py-4 bg-nebula-primary text-nebula-on_primary rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest shadow-2xl transition-all hover:scale-105 active:scale-95">Download Model (.pkl)</a>
                                 </div>
                             )}
                         </div>
@@ -607,7 +671,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                         {results.performance_plots.map((plot: string) => (
                            <div key={plot} className="bg-nebula-surface_container p-4 rounded-2xl border border-white/5 group overflow-hidden">
                               <p className="text-[9px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 opacity-70 group-hover:opacity-100 transition-opacity">Visual Metrics: {plot.split('model_')[1].replace('.png', '').replace('_', ' ')}</p>
-                              <img src={`http://localhost:8001/static/plots/${plot}?t=${Date.now()}`} alt="Performance" className="w-full h-auto rounded-lg shadow-2xl group-hover:scale-110 transition-transform duration-1000" />
+                              <img src={`${API_BASE_URL}/static/plots/${plot}?t=${Date.now()}`} alt="Performance" className="w-full h-auto rounded-lg shadow-2xl group-hover:scale-110 transition-transform duration-1000" />
                            </div>
                         ))}
                      </div>

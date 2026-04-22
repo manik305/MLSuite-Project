@@ -5,7 +5,7 @@ FROM python:3.9-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV HOST=0.0.0.0
-ENV PORT=8001
+ENV PORT=8000
 
 # Set work directory
 WORKDIR /app
@@ -25,11 +25,14 @@ COPY ML/ ./ML/
 COPY backend/ ./backend/
 COPY static/ ./static/
 COPY uploads/ ./uploads/
-COPY .env .
-COPY nanodb.json .
 
 # Expose the API port
-EXPOSE 8001
+EXPOSE 8000
+
+# Create a non-root user and set permissions
+RUN useradd -m mluser && \
+    chown -R mluser:mluser /app
+USER mluser
 
 # Command to run the application
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../api/config';
 
 const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, onLogout }) => {
   const [step, setStep] = useState(1);
@@ -24,6 +25,10 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
   
   // Results State
   const [results, setResults] = useState<any>(null);
+  
+  // Manual Tuning State
+  const [isManualTuning, setIsManualTuning] = useState(false);
+  const [manualParams, setManualParams] = useState("");
 
   // Fetch models whenever taskType changes
   useEffect(() => {
@@ -34,7 +39,7 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
 
   const fetchModels = async () => {
     try {
-      const response = await fetch(`http://localhost:8001/models?task_type=${taskType}`, {
+      const response = await fetch(`${API_BASE_URL}/models?task_type=${taskType}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -59,7 +64,7 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
         // First upload the file
         const formData = new FormData();
         formData.append('file', file);
-        const uploadRes = await fetch('http://localhost:8001/upload', {
+        const uploadRes = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
           body: formData,
@@ -76,7 +81,7 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
       }
       
       // Immediate Analysis (EDI)
-      const analyzeRes = await fetch(`http://localhost:8001/analyze?${queryParams.toString()}`, {
+      const analyzeRes = await fetch(`${API_BASE_URL}/analyze?${queryParams.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await analyzeRes.json();
@@ -96,16 +101,20 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
   };
 
   const handleTrain = async () => {
-    if (!targetColumn) return;
+    if (taskType !== 'clustering' && !targetColumn) return;
     setLoading(true);
     try {
         let queryParams = new URLSearchParams({
             task_type: taskType,
-            target_column: targetColumn,
-            model_name: tune ? 'auto' : selectedModel,
-            tune: tune.toString(),
+            target_column: taskType === 'clustering' ? '' : targetColumn,
+            model_name: (tune && !isManualTuning) ? 'auto' : selectedModel,
+            tune: (tune && !isManualTuning).toString(),
             data_source: dataSource
         });
+
+        if (isManualTuning && manualParams) {
+            queryParams.append('manual_params', manualParams);
+        }
 
         if (dataSource === 'file') {
             queryParams.append('filename', file?.name || '');
@@ -118,7 +127,7 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
             queryParams.append('collection_name', mongoConfig.collection_name);
         }
 
-        const response = await fetch(`http://localhost:8001/train?${queryParams.toString()}`, {
+        const response = await fetch(`${API_BASE_URL}/train?${queryParams.toString()}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -324,12 +333,12 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
                 <div key={plot} className="group relative overflow-hidden bg-nebula-surface_container rounded-xl transition-all duration-700 hover:-translate-y-2 border border-white/5">
                   <div className="p-5 flex justify-between items-center bg-nebula-surface_container_high bg-opacity-50">
                       <span className="text-[9px] font-mono font-bold text-nebula-outline uppercase tracking-[0.3em]">{plot.split('_')[0]} Spectral Plot</span>
-                      <div onClick={() => window.open(`http://localhost:8001/static/plots/${plot}`, '_blank')} className="w-8 h-8 rounded-lg bg-nebula-surface_container_lowest flex items-center justify-center text-nebula-outline hover:text-nebula-primary transition-all">
+                      <div onClick={() => window.open(`${API_BASE_URL}/static/plots/${plot}`, '_blank')} className="w-8 h-8 rounded-lg bg-nebula-surface_container_lowest flex items-center justify-center text-nebula-outline hover:text-nebula-primary transition-all">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                       </div>
                   </div>
                   <div className="p-4 bg-[#0b1323]">
-                    <img src={`http://localhost:8001/static/plots/${plot}?t=${Date.now()}`} alt="EDA" className="w-full h-auto rounded" />
+                    <img src={`${API_BASE_URL}/static/plots/${plot}?t=${Date.now()}`} alt="EDA" className="w-full h-auto rounded" />
                   </div>
                 </div>
               ))}
@@ -352,18 +361,20 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Architectural Task</label>
                     <div className="flex gap-2 p-1 bg-nebula-surface_container_low rounded-lg">
-                      {['classification', 'regression'].map((type) => (
+                      {['classification', 'regression', 'clustering'].map((type) => (
                         <button key={type} onClick={() => setTaskType(type)} className={`flex-1 py-4 rounded text-[10px] font-mono font-bold uppercase tracking-widest transition-all ${taskType === type ? 'bg-nebula-primary text-nebula-on_primary shadow-lg' : 'text-nebula-on_surface_variant'}`}>{type}</button>
                       ))}
                     </div>
                   </div>
 
+                  {taskType !== 'clustering' && (
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Target Dimension</label>
                     <select value={targetColumn} onChange={(e) => setTargetColumn(e.target.value)} className="input-nebula w-full font-mono text-xs">
                       {availableColumns.map(col => <option key={col} value={col}>{col}</option>)}
                     </select>
                   </div>
+                  )}
 
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Cognitive Model</label>
@@ -423,7 +434,7 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
                       </div>
                       <div className="pt-10">
                         <img 
-                          src={`http://localhost:8001/static/plots/data_composition_pie.png?t=${Date.now()}`} 
+                          src={`${API_BASE_URL}/static/plots/data_composition_pie.png?t=${Date.now()}`} 
                           alt="Composition" 
                           className="w-full h-auto rounded-lg shadow-inner scale-110 pointer-events-none" 
                         />
@@ -480,17 +491,46 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
                                                     <p className="text-xl font-mono text-nebula-outline/50">{item.error_rate}</p>
                                                 </td>
                                                 <td className="py-6 text-right">
-                                                    {item.is_winner ? (
-                                                        <span className="px-3 py-1 bg-nebula-primary text-nebula-on_primary text-[8px] font-mono font-bold uppercase tracking-widest rounded-full shadow-[0_0_15px_rgba(195,245,255,0.4)]">Winner / Best Fit</span>
-                                                    ) : (
-                                                        <span className="text-[8px] font-mono text-nebula-outline uppercase tracking-widest opacity-40">Defeated</span>
-                                                    )}
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        {item.is_winner ? (
+                                                            <span className="px-3 py-1 bg-nebula-primary text-nebula-on_primary text-[8px] font-mono font-bold uppercase tracking-widest rounded-full shadow-[0_0_15px_rgba(195,245,255,0.4)]">Winner / Best Fit</span>
+                                                        ) : (
+                                                            <span className="px-3 py-1 bg-nebula-surface_container_highest border border-white/5 text-[8px] font-mono font-bold uppercase tracking-widest rounded-full opacity-60">Alternative</span>
+                                                        )}
+                                                        {item.best_params && (
+                                                            <button onClick={() => {
+                                                                setManualParams(JSON.stringify(item.best_params, null, 2));
+                                                                setIsManualTuning(true);
+                                                                setSelectedModel(item.model_name);
+                                                            }} className="text-[8px] font-mono text-nebula-primary underline uppercase tracking-widest hover:text-nebula-on_primary transition-colors">
+                                                                Override Parameters
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                              </div>
+                        </div>
+                    )}
+                    
+                    {isManualTuning && (
+                        <div className="bg-nebula-surface_container_low p-8 rounded-2xl border border-nebula-primary/40 space-y-4 shadow-2xl relative overflow-hidden animate-fade-in">
+                             <div className="flex justify-between items-center mb-4">
+                               <h4 className="text-[10px] font-mono font-bold text-nebula-primary uppercase tracking-[0.4em] relative z-10">Manual Kernel Override ({selectedModel})</h4>
+                               <button onClick={() => setIsManualTuning(false)} className="text-[10px] text-nebula-outline hover:text-nebula-error">Cancel</button>
+                             </div>
+                             <textarea 
+                                value={manualParams} 
+                                onChange={(e) => setManualParams(e.target.value)} 
+                                className="w-full text-xs font-mono bg-nebula-background border border-white/10 rounded-lg p-4 h-48 focus:border-nebula-primary outline-none" 
+                                spellCheck={false}
+                             />
+                             <button onClick={handleTrain} className="w-full py-4 bg-nebula-primary text-nebula-on_primary rounded font-mono font-bold text-[10px] tracking-widest uppercase hover:bg-nebula-primary_fixed transition-all">
+                                 Re-execute Assembly
+                             </button>
                         </div>
                     )}
 
@@ -519,7 +559,7 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
                              {results.model_url && (
                                 <div className="pt-12 flex justify-between items-center border-t border-white/5">
                                     <p className="text-[9px] font-mono text-nebula-outline uppercase tracking-widest italic opacity-50">Weights exported to kernel vault.</p>
-                                    <a href={`http://localhost:8001${results.model_url}`} download className="px-8 py-4 bg-nebula-primary text-nebula-on_primary rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest shadow-2xl transition-all hover:scale-105 active:scale-95">Download Model (.pkl)</a>
+                                    <a href={`${API_BASE_URL}${results.model_url}`} download className="px-8 py-4 bg-nebula-primary text-nebula-on_primary rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest shadow-2xl transition-all hover:scale-105 active:scale-95">Download Model (.pkl)</a>
                                 </div>
                             )}
                         </div>
@@ -532,7 +572,7 @@ const Dashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, o
                         {results.performance_plots.map((plot: string) => (
                            <div key={plot} className="bg-nebula-surface_container p-4 rounded-2xl border border-white/5 group overflow-hidden">
                               <p className="text-[9px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 opacity-70 group-hover:opacity-100 transition-opacity">Visual Metrics: {plot.split('model_')[1].replace('.png', '').replace('_', ' ')}</p>
-                              <img src={`http://localhost:8001/static/plots/${plot}?t=${Date.now()}`} alt="Performance" className="w-full h-auto rounded-lg shadow-2xl group-hover:scale-110 transition-transform duration-1000" />
+                              <img src={`${API_BASE_URL}/static/plots/${plot}?t=${Date.now()}`} alt="Performance" className="w-full h-auto rounded-lg shadow-2xl group-hover:scale-110 transition-transform duration-1000" />
                            </div>
                         ))}
                      </div>

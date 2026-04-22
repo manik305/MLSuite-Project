@@ -4,11 +4,13 @@ FROM node:18-alpine AS build
 WORKDIR /app
 
 # Install dependencies
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copy source and build
-COPY frontend/ ./
+COPY ./ ./
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
 # Stage 2: Serve with Nginx

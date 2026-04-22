@@ -1,33 +1,72 @@
-name: CD Pipeline
+name: CD Pipeline (CD)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
+  # Optional: Trigger after CI passes
   workflow_run:
-    workflows: ["CI Pipeline"]
-    types: [completed]
-    branches: [main]
+    workflows: ["CI Pipeline (CL)"]
+    types:
+      - completed
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY_BACKEND: mlsuite-backend
+  ECR_REPOSITORY_FRONTEND: mlsuite-frontend
 
 jobs:
   deploy:
+    name: Build and Deploy to AWS
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
+    # Only run if it's a push to main OR the CI workflow passed
+    if: >
+      github.event_name == 'push' || 
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Deploy to Supabase (Subbase)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-        run: |
-          echo "Initiating Deployment to Supabase..."
-          # Example for Supabase Edge Functions or CLI deployment
-          # npm install -g supabase
-          # supabase link --project-ref $SUPABASE_PROJECT_ID
-          # supabase db push
-          # supabase functions deploy
-          echo "Deployment successful."
+    - name: Checkout
+      uses: actions/checkout@v3
 
-      - name: Notify Slack/Discord
-        if: success()
-        run: echo "Deployment to production successful."
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, tag, and push backend image to Amazon ECR
+      id: build-backend
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -f backend/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Build, tag, and push frontend image to Amazon ECR
+      id: build-frontend
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+        VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+      run: |
+        docker build --build-arg VITE_API_BASE_URL=$VITE_API_BASE_URL -t $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG ./frontend
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Deploy Backend to AWS App Runner
+      run: |
+        aws apprunner update-service \
+          --service-arn ${{ secrets.AWS_BACKEND_SERVICE_ARN }} \
+          --source-configuration ImageRepository='{ImageIdentifier="${{ steps.build-backend.outputs.image }}",ImageRepositoryType="ECR"}'
+
+    - name: Deploy Frontend to AWS App Runner
+      run: |
+        aws apprunner update-service \
+          --service-arn ${{ secrets.AWS_FRONTEND_SERVICE_ARN }} \
+          --source-configuration ImageRepository='{ImageIdentifier="${{ steps.build-frontend.outputs.image }}",ImageRepositoryType="ECR"}'

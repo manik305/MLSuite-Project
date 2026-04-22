@@ -44,18 +44,26 @@
 - **Reporting Freshness Policy**: Automatically clears previous analysis artifacts at the start of each run to ensure report integrity and prevent stale data visualization.
 
 ### 4.5 Machine Learning Engine
-- **Task Types**: Support for both Regression and Classification.
+- **Task Types**: Support for Regression, Classification, and Unsupervised Learning (Clustering).
 - **Algorithms**:
-    - **Classification**: Logistic Regression, Support Vector Classification (SVC).
-    - **Regression**: Linear Regression, Support Vector Regression (SVR).
-- **Hyperparameter Tuning**: Automated search (e.g., GridSearch or RandomSearch) to find the optimal parameters for each model.
-- **Best Model Selection**: Compare performance across supported algorithms and recommend the best-fit model for the specific dataset.
+    - **Classification**: Logistic Regression, Support Vector Classification (SVC), Random Forest, XGBoost, etc.
+    - **Regression**: Linear Regression, Support Vector Regression (SVR), Decision Trees, AdaBoost, GBM, XGBoost, LightGBM, CatBoost.
+    - **Clustering**: K-Means, DBSCAN, Agglomerative Clustering.
+- **Expert Optimization**:
+    - **GridSearchCV**: Supervised models undergo rigorous hyperparameter evaluation using 5-fold cross-validation.
+    - **Clustering Tuning**: Automated hyperparameter sweep optimizing for internal clustering validity metrics like Silhouette Score.
+    - **Multi-Metric Scoring**: Models are optimized against a balance of R2 Score, accuracy, minimizing errors, and maximizing silhouette scores.
+- **Best Model Selection**: Automated comparison and selection based on minimized error, generalized fit, and separation bounds.
 
 ### 4.6 Reporting & Visualization
-- **Model performance**: Reprint implementation results with clear metrics (Accuracy, F1, MSE, R2, etc.).
+- **Expert-Grade Metrics**:
+    - **Regression**: Detailed reporting of **Mean Absolute Error (MAE)**, **Mean Squared Error (MSE)**, and **Root Mean Squared Error (RMSE)**.
+    - **Classification**: Clear presentation of Accuracy and F1-Score.
+    - **Clustering**: Silhouette Score and number of estimated clusters.
 - **Screening**: High-quality visual representation of model performance:
     - **Classification**: Confusion Matrix and ROC Curves.
     - **Regression**: Actual vs. Predicted and Residual analysis plots.
+    - **Clustering**: Multi-dimensional scatter plots projecting points on PCA components emphasizing cluster groupings.
 
 ## 5. Non-Functional Requirements
 - **Performance**: Preprocessing and EDA should be responsive for reasonably sized datasets.

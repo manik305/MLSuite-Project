@@ -22,3 +22,10 @@ pymongo
 pyjwt
 python-dotenv
 openpyxl
+xgboost
+lightgbm
+catboost
+seaborn
+python-multipart
+joblib
+numpy

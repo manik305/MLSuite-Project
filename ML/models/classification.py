@@ -1,7 +1,11 @@
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+from catboost import CatBoostClassifier
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, ConfusionMatrixDisplay, roc_curve, auc
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
@@ -14,7 +18,13 @@ class ClassificationModels:
             'Logistic Regression': LogisticRegression(max_iter=1000),
             'SVC': SVC(probability=True),
             'Decision Tree': DecisionTreeClassifier(),
-            'Random Forest': RandomForestClassifier(n_estimators=100)
+            'Random Forest': RandomForestClassifier(n_estimators=100),
+            'Gradient Boosting': GradientBoostingClassifier(),
+            'AdaBoost': AdaBoostClassifier(),
+            'K-Nearest Neighbors': KNeighborsClassifier(),
+            'XGBoost': XGBClassifier(eval_metric='logloss'),
+            'LightGBM': LGBMClassifier(),
+            'CatBoost': CatBoostClassifier(verbose=0)
         }
         self.results = {}
 
@@ -27,6 +37,16 @@ class ClassificationModels:
             
         target_models = {selected_model: self.models[selected_model]} if selected_model else self.models
         
+        # Double-safety: ensure labels are integers for classification
+        try:
+            y_train = y_train.astype(int)
+            y_test = y_test.astype(int)
+        except:
+            from sklearn.preprocessing import LabelEncoder
+            le = LabelEncoder()
+            y_train = le.fit_transform(y_train)
+            y_test = le.transform(y_test)
+            
         for name, model in target_models.items():
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)

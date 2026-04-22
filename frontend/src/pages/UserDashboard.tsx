@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL, getAuthHeaders, getUploadHeaders } from '../api/config';
 
 const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ token, onLogout }) => {
   const [step, setStep] = useState(1);
@@ -25,6 +26,13 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
   // Results State
   const [results, setResults] = useState<any>(null);
 
+  // Inference State
+  const [inferenceModelId, setInferenceModelId] = useState('');
+  const [inferenceDataSource, setInferenceDataSource] = useState('file');
+  const [inferenceFile, setInferenceFile] = useState<File | null>(null);
+  const [predictions, setPredictions] = useState<any[] | null>(null);
+  const [savedModels, setSavedModels] = useState<any[]>([]);
+
   // Fetch models whenever taskType changes
   useEffect(() => {
     if (step >= 3) {
@@ -34,14 +42,28 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
 
   const fetchModels = async () => {
     try {
-      const response = await fetch(`http://localhost:8001/models?task_type=${taskType}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const response = await fetch(`${API_BASE_URL}/models?task_type=${taskType}`, {
+        headers: getAuthHeaders(token)
       });
       const data = await response.json();
       setAvailableModels(data.models);
       if (data.models.length > 0) setSelectedModel(data.models[0]);
     } catch (err) {
       console.error("Failed to fetch models", err);
+    }
+  };
+
+  const fetchSavedModels = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/models/saved`, {
+        headers: getAuthHeaders(token)
+      });
+      const data = await response.json();
+      const modelsArr = Object.values(data.models || {});
+      setSavedModels(modelsArr);
+      if (modelsArr.length > 0 && !inferenceModelId) setInferenceModelId((modelsArr[0] as any).model_id);
+    } catch (err) {
+      console.error("Failed to fetch saved models", err);
     }
   };
 
@@ -59,9 +81,9 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
         // First upload the file
         const formData = new FormData();
         formData.append('file', file);
-        const uploadRes = await fetch('http://localhost:8001/upload', {
+        const uploadRes = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: getUploadHeaders(token),
           body: formData,
         });
         if (!uploadRes.ok) throw new Error("Upload failed");
@@ -76,8 +98,8 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
       }
       
       // Immediate Analysis (EDI)
-      const analyzeRes = await fetch(`http://localhost:8001/analyze?${queryParams.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const analyzeRes = await fetch(`${API_BASE_URL}/analyze?${queryParams.toString()}`, {
+        headers: getAuthHeaders(token)
       });
       const data = await analyzeRes.json();
       if (!analyzeRes.ok) throw new Error(data.detail);
@@ -118,18 +140,67 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
             queryParams.append('collection_name', mongoConfig.collection_name);
         }
 
-        const response = await fetch(`http://localhost:8001/train?${queryParams.toString()}`, {
+        const response = await fetch(`${API_BASE_URL}/train?${queryParams.toString()}`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: getAuthHeaders(token)
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail);
         setResults(data);
+        setInferenceModelId(data.model_id);
         setStep(4); // Move to Results phase
     } catch (err: any) {
         alert('Training failed: ' + err.message);
     } finally {
         setLoading(false);
+    }
+  };
+
+  const handlePredict = async () => {
+    setLoading(true);
+    setPredictions(null);
+    try {
+      let queryParams: any = {
+        model_id: inferenceModelId,
+        data_source: inferenceDataSource,
+      };
+
+      if (inferenceDataSource === 'file') {
+        if (!inferenceFile) {
+          setMessage('Please select a file for inference.');
+          setLoading(false);
+          return;
+        }
+        const formData = new FormData();
+        formData.append('file', inferenceFile);
+        const uploadRes = await fetch(`${API_BASE_URL}/upload`, {
+          method: 'POST',
+          headers: getUploadHeaders(token),
+          body: formData,
+        });
+        if (!uploadRes.ok) throw new Error("Upload failed");
+        queryParams.filename = inferenceFile.name;
+      } else if (inferenceDataSource === 'sql') {
+        queryParams.connection_string = sqlConfig.connection_string;
+        queryParams.table_name = sqlConfig.table_name;
+      } else if (inferenceDataSource === 'mongodb') {
+        queryParams.connection_uri = mongoConfig.connection_uri;
+        queryParams.db_name = mongoConfig.db_name;
+        queryParams.collection_name = mongoConfig.collection_name;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/predict`, {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(queryParams)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail);
+      setPredictions(data.predictions);
+    } catch (err: any) {
+      alert('Prediction failed: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -147,11 +218,14 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
           </div>
           <div>
             <h1 className="text-2xl font-display font-medium text-nebula-on_surface tracking-tighter uppercase">MLSUITE / USER PORTAL</h1>
-            <p className="text-[10px] font-mono text-nebula-primary tracking-[0.2em] font-bold mt-1 opacity-80 uppercase">Step {step}: {step === 1 ? 'Injection' : step === 2 ? 'Discovery' : step === 3 ? 'Refinement' : 'Intelligence'}</p>
+            <p className="text-[10px] font-mono text-nebula-primary tracking-[0.2em] font-bold mt-1 opacity-80 uppercase">Step {step}: {step === 1 ? 'Injection' : step === 2 ? 'Discovery' : step === 3 ? 'Refinement' : step === 4 ? 'Intelligence' : 'Inference'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-8">
-          <button onClick={onLogout} className="btn-secondary text-[10px] uppercase font-bold tracking-[0.2em] px-4 py-2 border-nebula-outline/10 hover:text-nebula-error">
+        <div className="flex items-center gap-6">
+          <button onClick={() => { fetchSavedModels(); setStep(5); }} className="btn-secondary text-[10px] uppercase font-bold tracking-[0.2em] px-4 py-2 border border-nebula-primary/30 text-nebula-primary hover:bg-nebula-primary/10 rounded">
+            Launch Inference
+          </button>
+          <button onClick={onLogout} className="btn-secondary text-[10px] uppercase font-bold tracking-[0.2em] px-4 py-2 border border-transparent text-nebula-error hover:bg-nebula-error/10 hover:border-nebula-error/30 rounded">
             Terminate Session
           </button>
         </div>
@@ -324,12 +398,12 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
                 <div key={plot} className="group relative overflow-hidden bg-nebula-surface_container rounded-xl transition-all duration-700 hover:-translate-y-2 border border-white/5">
                   <div className="p-5 flex justify-between items-center bg-nebula-surface_container_high bg-opacity-50">
                       <span className="text-[9px] font-mono font-bold text-nebula-outline uppercase tracking-[0.3em]">{plot.split('_')[0]} Spectral Plot</span>
-                      <div onClick={() => window.open(`http://localhost:8001/static/plots/${plot}`, '_blank')} className="w-8 h-8 rounded-lg bg-nebula-surface_container_lowest flex items-center justify-center text-nebula-outline hover:text-nebula-primary transition-all">
+                      <div onClick={() => window.open(`${API_BASE_URL}/static/plots/${plot}`, '_blank')} className="w-8 h-8 rounded-lg bg-nebula-surface_container_lowest flex items-center justify-center text-nebula-outline hover:text-nebula-primary transition-all">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                       </div>
                   </div>
                   <div className="p-4 bg-[#0b1323]">
-                    <img src={`http://localhost:8001/static/plots/${plot}?t=${Date.now()}`} alt="EDA" className="w-full h-auto rounded" />
+                    <img src={`${API_BASE_URL}/static/plots/${plot}?t=${Date.now()}`} alt="EDA" className="w-full h-auto rounded" />
                   </div>
                 </div>
               ))}
@@ -352,18 +426,20 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Architectural Task</label>
                     <div className="flex gap-2 p-1 bg-nebula-surface_container_low rounded-lg">
-                      {['classification', 'regression'].map((type) => (
+                      {['classification', 'regression', 'clustering'].map((type) => (
                         <button key={type} onClick={() => setTaskType(type)} className={`flex-1 py-4 rounded text-[10px] font-mono font-bold uppercase tracking-widest transition-all ${taskType === type ? 'bg-nebula-primary text-nebula-on_primary shadow-lg' : 'text-nebula-on_surface_variant'}`}>{type}</button>
                       ))}
                     </div>
                   </div>
 
+                  {taskType !== 'clustering' && (
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Target Dimension</label>
                     <select value={targetColumn} onChange={(e) => setTargetColumn(e.target.value)} className="input-nebula w-full font-mono text-xs">
                       {availableColumns.map(col => <option key={col} value={col}>{col}</option>)}
                     </select>
                   </div>
+                  )}
 
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Cognitive Model</label>
@@ -423,7 +499,7 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
                       </div>
                       <div className="pt-10">
                         <img 
-                          src={`http://localhost:8001/static/plots/data_composition_pie.png?t=${Date.now()}`} 
+                          src={`${API_BASE_URL}/static/plots/data_composition_pie.png?t=${Date.now()}`} 
                           alt="Composition" 
                           className="w-full h-auto rounded-lg shadow-inner scale-110 pointer-events-none" 
                         />
@@ -440,9 +516,14 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
              <div className="text-center space-y-4">
               <p className="text-[10px] font-mono font-bold text-nebula-primary uppercase tracking-[0.5em]">Phase 04 // Result</p>
               <h2 className="text-7xl font-display font-medium tracking-tightest leading-tight">Neural <span className="opacity-40 italic">Convergence.</span></h2>
-              <button onClick={() => { setStep(1); setResults(null); }} className="px-6 py-2 bg-white/5 text-[9px] font-mono font-bold uppercase tracking-[0.3em] text-nebula-outline hover:text-nebula-on_surface border border-white/5 rounded mt-4">
-                  Initialize New Sequence
-              </button>
+              <div className="flex justify-center gap-6 mt-4">
+                  <button onClick={() => { fetchSavedModels(); setStep(5); }} className="px-6 py-2 bg-nebula-primary/10 text-[9px] font-mono font-bold uppercase tracking-[0.3em] text-nebula-primary hover:bg-nebula-primary/20 border border-nebula-primary/30 rounded transition-all">
+                      Proceed to Inference
+                  </button>
+                  <button onClick={() => { setStep(1); setResults(null); }} className="px-6 py-2 bg-white/5 text-[9px] font-mono font-bold uppercase tracking-[0.3em] text-nebula-outline hover:text-nebula-on_surface border border-white/5 rounded transition-all">
+                      Initialize New Sequence
+                  </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-12 items-start">
@@ -519,7 +600,7 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
                              {results.model_url && (
                                 <div className="pt-12 flex justify-between items-center border-t border-white/5">
                                     <p className="text-[9px] font-mono text-nebula-outline uppercase tracking-widest italic opacity-50">Weights exported to kernel vault.</p>
-                                    <a href={`http://localhost:8001${results.model_url}`} download className="px-8 py-4 bg-nebula-primary text-nebula-on_primary rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest shadow-2xl transition-all hover:scale-105 active:scale-95">Download Model (.pkl)</a>
+                                    <a href={`${API_BASE_URL}${results.model_url}`} download className="px-8 py-4 bg-nebula-primary text-nebula-on_primary rounded-lg font-mono text-[10px] font-bold uppercase tracking-widest shadow-2xl transition-all hover:scale-105 active:scale-95">Download Model (.pkl)</a>
                                 </div>
                             )}
                         </div>
@@ -532,12 +613,107 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
                         {results.performance_plots.map((plot: string) => (
                            <div key={plot} className="bg-nebula-surface_container p-4 rounded-2xl border border-white/5 group overflow-hidden">
                               <p className="text-[9px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 opacity-70 group-hover:opacity-100 transition-opacity">Visual Metrics: {plot.split('model_')[1].replace('.png', '').replace('_', ' ')}</p>
-                              <img src={`http://localhost:8001/static/plots/${plot}?t=${Date.now()}`} alt="Performance" className="w-full h-auto rounded-lg shadow-2xl group-hover:scale-110 transition-transform duration-1000" />
+                              <img src={`${API_BASE_URL}/static/plots/${plot}?t=${Date.now()}`} alt="Performance" className="w-full h-auto rounded-lg shadow-2xl group-hover:scale-110 transition-transform duration-1000" />
                            </div>
                         ))}
                      </div>
                 </div>
             </div>
+          </div>
+        )}
+
+        {/* Step 5: Inference (Predictions) */}
+        {step === 5 && (
+          <div className="w-full max-w-4xl space-y-12 py-10 animate-fade-in">
+            <div className="text-center space-y-4">
+               <p className="text-[10px] font-mono font-bold text-nebula-primary uppercase tracking-[0.5em]">Phase 05 // Inference</p>
+               <h2 className="text-6xl font-display font-medium tracking-tightest leading-tight">Neural <span className="opacity-40 italic">Projection.</span></h2>
+               <button onClick={() => setStep(1)} className="px-6 py-2 bg-white/5 text-[9px] font-mono font-bold uppercase tracking-[0.3em] text-nebula-outline hover:text-nebula-on_surface border border-white/5 rounded mt-4">
+                  Return to Matrix
+               </button>
+            </div>
+
+            <div className="bg-nebula-surface_container_lowest p-10 rounded-2xl border border-white/5 shadow-2xl space-y-8">
+                {/* Select Model */}
+                <div className="space-y-4">
+                    <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest block">Select Intelligence Kernel (Saved Model)</label>
+                    {savedModels.length === 0 ? (
+                        <p className="text-sm font-mono text-nebula-error">No saved cores found. Please train a new model first.</p>
+                    ) : (
+                        <select value={inferenceModelId} onChange={(e) => setInferenceModelId(e.target.value)} className="input-nebula w-full font-mono text-xs text-nebula-primary font-bold bg-[#0b1323]">
+                            {savedModels.map(m => (
+                                <option key={m.model_id} value={m.model_id}>{m.name} ({m.task_type}) - {m.timestamp}</option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+                
+                {/* Select Extrapolation Data source */}
+                <div className="space-y-4 pt-6 border-t border-white/5">
+                    <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest block">Extrapolation Target Layer</label>
+                    <div className="flex gap-4">
+                    {['file', 'sql', 'mongodb'].map((type) => (
+                        <button 
+                            key={type} 
+                            onClick={() => setInferenceDataSource(type)} 
+                            className={`px-6 py-2 rounded-lg text-[10px] font-mono font-bold uppercase tracking-widest transition-all ${inferenceDataSource === type ? 'bg-nebula-primary text-nebula-on_primary shadow-lg' : 'bg-nebula-surface_container text-nebula-on_surface_variant border border-white/5'}`}
+                        >
+                            {type === 'mongodb' ? 'NoSQL (Mongo)' : type.toUpperCase()}
+                        </button>
+                    ))}
+                    </div>
+                </div>
+
+                {inferenceDataSource === 'file' && (
+                  <div className="bg-nebula-surface_container/30 rounded-xl p-8 text-center hover:bg-nebula-surface_container/50 transition-all cursor-pointer group relative overflow-hidden border-2 border-dashed border-nebula-outline/20">
+                      <input type="file" onChange={(e) => setInferenceFile(e.target.files?.[0] || null)} className="hidden" id="inference-file-upload" />
+                      <label htmlFor="inference-file-upload" className="cursor-pointer block space-y-4">
+                      <div className="w-12 h-12 bg-nebula-surface_container_highest text-nebula-primary rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-500">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                      </div>
+                      <div>
+                          <p className="text-sm font-bold text-nebula-on_surface tracking-tight">{inferenceFile ? inferenceFile.name : "Select Target Matrix File"}</p>
+                      </div>
+                      </label>
+                  </div>
+                )}
+                {inferenceDataSource === 'sql' && (
+                  <div className="bg-nebula-surface_container_low p-6 rounded-xl border border-white/5">
+                      <p className="text-xs text-nebula-outline">Using global SQL configuration.</p>
+                  </div>
+                )}
+                {inferenceDataSource === 'mongodb' && (
+                  <div className="bg-nebula-surface_container_low p-6 rounded-xl border border-white/5">
+                      <p className="text-xs text-nebula-outline">Using global MongoDB configuration.</p>
+                  </div>
+                )}
+
+                <button onClick={handlePredict} disabled={savedModels.length === 0} className="w-full bg-gradient-to-r from-nebula-primary to-nebula-primary_container text-nebula-on_primary rounded-xl font-mono font-bold text-xs tracking-[0.4em] py-5 shadow-2xl hover:scale-[1.02] transition-transform uppercase disabled:opacity-50 disabled:cursor-not-allowed mt-4">
+                    Execute Projection
+                </button>
+            </div>
+
+            {predictions && (
+                <div className="bg-nebula-surface_container p-10 rounded-3xl border border-nebula-primary/10 space-y-6 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-nebula-primary/10 blur-[80px] -mr-16 -mt-16"></div>
+                    <div className="flex justify-between items-center relative z-10">
+                        <h3 className="text-[12px] font-mono font-bold text-nebula-primary uppercase tracking-[0.4em]">Projection Data Points Derived</h3>
+                        <span className="px-3 py-1 bg-nebula-primary/20 text-nebula-primary rounded text-[9px] font-mono uppercase tracking-widest font-bold border border-nebula-primary/30">Total: {predictions.length}</span>
+                    </div>
+                    
+                    <div className="max-h-96 overflow-y-auto custom-scrollbar p-6 bg-[#0b1323] rounded-xl border border-white/5 relative z-10 space-y-2">
+                        {predictions.slice(0, 100).map((pred, i) => (
+                             <div key={i} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 hover:bg-white/5 px-4 rounded transition-colors">
+                                 <span className="text-[10px] font-mono text-nebula-outline uppercase">Target [{i}]</span>
+                                 <span className="text-sm font-mono font-bold text-nebula-on_surface">{typeof pred === 'number' ? pred.toFixed(4) : String(pred)}</span>
+                             </div>
+                        ))}
+                        {predictions.length > 100 && (
+                            <p className="text-center text-[10px] font-mono text-nebula-outline/50 pt-4">+ {predictions.length - 100} more points truncated.</p>
+                        )}
+                    </div>
+                </div>
+            )}
           </div>
         )}
 

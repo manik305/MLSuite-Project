@@ -1,8 +1,12 @@
 from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, AdaBoostRegressor
+from sklearn.neighbors import KNeighborsRegressor
+from xgboost import XGBRegressor
+from lightgbm import LGBMRegressor
+from catboost import CatBoostRegressor
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -14,7 +18,13 @@ class RegressionModels:
             'Linear Regression': LinearRegression(),
             'SVR': SVR(),
             'Decision Tree': DecisionTreeRegressor(),
-            'Random Forest': RandomForestRegressor(n_estimators=100)
+            'Random Forest': RandomForestRegressor(n_estimators=100),
+            'Gradient Boosting': GradientBoostingRegressor(),
+            'AdaBoost': AdaBoostRegressor(),
+            'K-Nearest Neighbors': KNeighborsRegressor(),
+            'XGBoost': XGBRegressor(),
+            'LightGBM': LGBMRegressor(),
+            'CatBoost': CatBoostRegressor(verbose=0)
         }
         self.results = {}
 
@@ -30,10 +40,16 @@ class RegressionModels:
         for name, model in target_models.items():
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
+            
             mse = mean_squared_error(y_test, y_pred)
+            mae = mean_absolute_error(y_test, y_pred)
+            rmse = np.sqrt(mse)
             r2 = r2_score(y_test, y_pred)
+            
             self.results[name] = {
                 'MSE': mse,
+                'MAE': mae,
+                'RMSE': rmse,
                 'R2 Score': r2
             }
         return self.results

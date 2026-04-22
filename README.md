@@ -13,11 +13,12 @@ MLSuite is an end-to-end platform for automated data preprocessing, Exploratory 
 - **Auto-Preprocessing**: Automated handling of missing values and feature standardization.
 - **Intelligent EDA**: Dynamic visualization of data distributions, correlations, and outlier analysis.
 - **Reporting Freshness Policy**: Automatic clearing of previous run artifacts to ensure data integrity.
-- **Model Tuning**: Automated hyperparameter tuning and model selection for:
-    - **Classification**: Logistic Regression, SVC.
-    - **Regression**: Linear Regression, SVR.
-- **High-Fidelity Reporting**: Generates deep-insight visualizations including Confusion Matrices, ROC Curves, and Residual Analysis.
-- **Performance Reporting**: Comprehensive results presentation with best model recommendation.
+- **Model Optimization**: Advanced hyperparameter tuning and best-model selection using `GridSearchCV`:
+    - **Classification**: Logistic Regression, SVC, Random Forest, XGBoost, and more.
+    - **Regression**: Linear Regression, SVR, Decision Trees, AdaBoost, GBM, XGBoost, LightGBM, and CatBoost.
+- **Expert-Grade Evaluation**: Standardized performance reporting using core industry metrics:
+    - **Regression**: Optimized for **Mean Absolute Error (MAE)**, **Mean Squared Error (MSE)**, and **Root Mean Squared Error (RMSE)** for maximum precision.
+    - **Classification**: Precision, Recall, F1-Score, and AUC-ROC analysis.
 
 ## Tech Stack
 - **Frontend**: TypeScript, React, Vite, Tailwind CSS (Featuring the "Digital Nebula" Base Design Aesthetic).
