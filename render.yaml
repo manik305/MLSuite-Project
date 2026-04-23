@@ -40,7 +40,6 @@ services:
     name: mlsuite-frontend
     env: static # Fixed: Static sites must use 'static' environment
     plan: free
-    region: ohio
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     rootDir : frontend
