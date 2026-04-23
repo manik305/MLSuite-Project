@@ -64,7 +64,20 @@ The frontend uses `frontend/src/api/config.ts` to manage the API base URL. In pr
 
 ---
 
-## 3. GCP Deployment
+## 3. Render.com Deployment (Simplest)
+
+For a quick and easy deployment with persistent storage:
+1. Use the `render.yaml` blueprint provided in the root.
+2. Follow the detailed instructions in [docs/RENDER.md](docs/RENDER.md).
+
+### 3.1 Blueprint Features
+- **Auto-linking**: Automatically connects the frontend to the backend URL.
+- **Persistence**: Mounts a disk for `nanodb.json` and uploads.
+- **Zero-Config Secrets**: Generates JWT secrets automatically.
+
+---
+
+## 4. GCP Deployment
 ... [rest of GCP section] ...
 
 ---

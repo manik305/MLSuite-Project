@@ -35,6 +35,8 @@ static/models/
 *.pkl
 *.db
 *.sqlite
+git.md
+
 
 # Environment Variables
 .env

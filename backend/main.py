@@ -11,6 +11,7 @@ from ML.eda_engine import EDAEngine
 from ML.models.classification import ClassificationModels
 from ML.models.regression import RegressionModels
 from ML.models.clustering import ClusteringModels
+from ML.models.time_series import TimeSeriesModels
 from ML.tuner import MLTuner
 from backend.auth import init_db, get_db, save_db, AuthHandler, get_current_user
 import hashlib
@@ -22,8 +23,58 @@ from fastapi.staticfiles import StaticFiles
 app = FastAPI(title="MLSuite API")
 init_db()
 
-# Mount static files to serve plots
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Global Directory Definitions
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(BASE_DIR)
+
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(ROOT_DIR, "uploads"))
+STATIC_ROOT = os.path.join(ROOT_DIR, "static")
+STATIC_DIR = os.getenv("STATIC_DIR", os.path.join(STATIC_ROOT, "plots"))
+MODELS_DIR = os.getenv("MODELS_DIR", os.path.join(STATIC_ROOT, "models"))
+
+# Ensure directories exist
+for d in [UPLOAD_DIR, STATIC_ROOT, STATIC_DIR, MODELS_DIR]:
+    if not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
+
+@app.get("/health")
+async def health_check():
+    """
+    Comprehensive health check for the MLSuite API.
+    Returns status of the API, database, storage, and lists all available routes.
+    """
+    health = {
+        "status": "UP",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "database": "UP",
+        "storage": {
+            "uploads": "UP" if os.path.exists(UPLOAD_DIR) else "DOWN",
+            "plots": "UP" if os.path.exists(STATIC_DIR) else "DOWN",
+            "models": "UP" if os.path.exists(MODELS_DIR) else "DOWN",
+        },
+        "routes": []
+    }
+
+    # Check database health
+    try:
+        get_db()
+    except Exception:
+        health["database"] = "DOWN"
+        health["status"] = "DEGRADED"
+
+    # List all available routes
+    for route in app.routes:
+        if hasattr(route, "path"):
+            health["routes"].append({
+                "path": route.path,
+                "name": route.name,
+                "methods": list(route.methods) if hasattr(route, "methods") else []
+            })
+
+    return health
+
+# Mount static files to serve plots and models
+app.mount("/static", StaticFiles(directory=STATIC_ROOT), name="static")
 
 class UserAuth(BaseModel):
     email: str
@@ -106,16 +157,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
-STATIC_DIR = os.getenv("STATIC_DIR", "static/plots")
-MODELS_DIR = os.getenv("MODELS_DIR", "static/models")
-
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
-if not os.path.exists(STATIC_DIR):
-    os.makedirs(STATIC_DIR)
-if not os.path.exists(MODELS_DIR):
-    os.makedirs(MODELS_DIR)
 
 class Config(BaseModel):
     task_type: str # 'classification' or 'regression' or 'clustering'
@@ -220,6 +261,8 @@ async def list_models(task_type: str):
         return {"models": RegressionModels().get_model_list()}
     elif task_type == 'clustering':
         return {"models": ClusteringModels().get_model_list()}
+    elif task_type == 'time_series':
+        return {"models": TimeSeriesModels().get_model_list()}
     else:
         raise HTTPException(status_code=400, detail="Invalid task type")
 
@@ -247,7 +290,7 @@ async def train_model(
 
     # Preprocess - pass target_column (if any) to skip standardization on labels
     preprocessor = Preprocessor(df)
-    if task_type != 'clustering':
+    if task_type in ['classification', 'regression']:
         df, target_column = preprocessor.process_all(target_col=target_column)
 
         if not target_column or target_column not in df.columns:
@@ -258,11 +301,24 @@ async def train_model(
 
         from sklearn.model_selection import train_test_split
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    else:
+    elif task_type == 'clustering':
         df, _ = preprocessor.process_all(target_col=None)
         X = df
         X_train, X_test = X, pd.DataFrame()
         y_train, y_test = None, None
+    elif task_type == 'time_series':
+        df, target_column = preprocessor.process_all(target_col=target_column)
+        if not target_column:
+            # For time series, default to the last column if not specified
+            target_column = df.columns[-1]
+        
+        y = df[target_column]
+        # Sequential split for time series
+        split_idx = int(len(y) * 0.8)
+        y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
+        X_train, X_test = pd.DataFrame(), pd.DataFrame()
+    else:
+        raise HTTPException(status_code=400, detail="Invalid task type")
 
     results = {}
     tuning_result = None
@@ -292,6 +348,9 @@ async def train_model(
         elif task_type == 'clustering':
             clu = ClusteringModels()
             clu.generate_visualizations(winner_name, X, STATIC_DIR, trained_model=model_to_save)
+        elif task_type == 'time_series':
+            ts = TimeSeriesModels()
+            ts.generate_visualizations(model_to_save, y, STATIC_DIR)
     else:
         # Single Model Mode
         if task_type == 'classification':
@@ -330,6 +389,13 @@ async def train_model(
             results = clu.train_and_eval(X, selected_model=model_name)
             model_to_save = clu.models[model_name]
             clu.generate_visualizations(model_name, X, STATIC_DIR)
+        elif task_type == 'time_series':
+            if model_name == 'auto':
+                model_name = TimeSeriesModels().get_model_list()[0]
+            ts = TimeSeriesModels()
+            results = ts.train_and_eval(y_train, selected_model=model_name)
+            model_to_save = results[model_name]['fitted_model']
+            ts.generate_visualizations(model_to_save, y, STATIC_DIR)
 
     # Save best model with unique ID
     model_id = str(uuid.uuid4())

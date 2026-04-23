@@ -52,3 +52,28 @@ NanoDB stores project-level information. Key collections:
 - **Interactivity**: Graphs should allow zooming and data inspection.
 - **User Feedback**: Loaders and progress bars for long-running preprocessing/tuning tasks.
 - **Aesthetics**: Dark mode support, glassmorphism elements, and smooth transitions.
+- **Reflective Backgrounds**: Use ultra-subtle radial gradients to simulate light reflecting off polished dark surfaces, enhancing the premium feel.
+- **Chromatic Bloom**: Focused or active elements emit a soft, tinted glow to simulate light passing through glass.
+
+## 5. Visual Design System: The Digital Nebula
+
+### 5.1 Overview
+The "Digital Nebula" aesthetic moves away from clinical ML interfaces toward a high-end, editorial experience. It emphasizes depth, mystery, and multi-dimensional intelligence. The UI is treated as a series of light-emitting surfaces suspended in a vast, dark void.
+
+### 5.2 Key Design Principles
+- **The "No-Line" Rule**: Avoid 1px solid borders. Use background tonal shifts (e.g., `surface` vs `surface_container_low`) to define boundaries.
+- **Glassmorphism**: Floating panels use 60% opacity backgrounds with 20px backdrop-blur.
+- **Reflective Backgrounds**: Incorporate ultra-subtle radial gradients (5% opacity) of primary (`#9cf0ff`) and secondary (`#e0e0ff`) colors positioned asymmetrically to simulate light reflecting off polished dark surfaces.
+- **Chromatic Bloom**: Interactive elements emit a soft glow (`rgba(0, 218, 243, 0.15)`) when focused, creating the illusion of light passing through glass.
+- **Intentional Asymmetry**: Balance heavy data tables with expansive negative space to create a curated, cinematic feel.
+
+### 5.3 Color Palette (Nebula)
+- **Base**: `#0b1323` (Deep Space Blue)
+- **Primary**: `#c3f5ff` to `#00e5ff` (Electric Cyan Gradient)
+- **Surface**: Tonal layering from `#060e1d` (Lowest) to `#2d3546` (Highest).
+- **Reflective Tones**: `#9cf0ff` (Primary Fixed) and `#e0e0ff` (Secondary Fixed) at low opacity for background highlights.
+
+### 5.4 Typography
+- **Headlines**: Space Grotesk (Technical yet expressive). Tight letter-spacing (-0.04em) for display titles.
+- **Body**: Inter (Neutral workhorse).
+- **Data/Labels**: Manrope (High numeric legibility for metadata and scores).

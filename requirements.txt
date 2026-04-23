@@ -29,3 +29,4 @@ seaborn
 python-multipart
 joblib
 numpy
+statsmodels

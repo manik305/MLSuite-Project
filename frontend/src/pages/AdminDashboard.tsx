@@ -133,7 +133,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
   };
 
   const handleTrain = async () => {
-    if (!targetColumn) return;
+    if (taskType !== 'clustering' && !targetColumn) return;
     setLoading(true);
     try {
         let queryParams = new URLSearchParams({
@@ -177,7 +177,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
       <div className="absolute top-0 right-0 w-[60vw] h-[60vw] bg-nebula-primary/5 blur-[150px] rounded-full pointer-events-none z-0"></div>
 
       {/* Header */}
-      <header className="bg-nebula-surface_container px-12 py-6 flex justify-between items-center z-50 relative shadow-2xl">
+      <header className="bg-nebula-surface_container px-12 py-6 flex justify-between items-center z-50 relative">
         <div className="flex items-center gap-6">
           <div className="w-12 h-12 bg-gradient-to-br from-nebula-primary to-nebula-primary_container rounded-lg flex items-center justify-center text-nebula-on_primary font-bold shadow-[0_0_20px_rgba(195,245,255,0.4)]">
             <span className="text-xl">M</span>
@@ -188,7 +188,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
           </div>
         </div>
         <div className="flex items-center gap-8">
-          <div className="flex bg-nebula-surface_container_highest p-1 rounded-lg border border-white/5">
+          <div className="flex bg-nebula-surface_container_highest p-1 rounded-lg">
             <button 
                 onClick={() => setView('ml_flow')} 
                 className={`px-4 py-2 text-[10px] font-mono font-bold uppercase tracking-widest rounded transition-all ${view === 'ml_flow' ? 'bg-nebula-primary text-nebula-on_primary' : 'text-nebula-outline'}`}
@@ -223,7 +223,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                     <p className="text-nebula-on_surface_variant text-lg opacity-70">Monitor and manage access protocols for all neural operators.</p>
                 </div>
 
-                <div className="bg-nebula-surface_container_lowest p-8 rounded-2xl border border-white/5 shadow-2xl overflow-hidden">
+                <div className="bg-nebula-surface_container_lowest p-8 rounded-2xl shadow-2xl overflow-hidden">
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b border-white/5">
@@ -262,7 +262,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                     <p className="text-nebula-on_surface_variant text-lg opacity-70">Complete audit trail of models trained and data processed across the ecosystem.</p>
                 </div>
 
-                <div className="bg-white/[0.02] backdrop-blur-3xl p-8 rounded-2xl border border-white/5 shadow-2xl overflow-hidden">
+                <div className="glass-panel p-8 shadow-2xl overflow-hidden">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-white/5">
@@ -327,7 +327,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                 ))}
             </div>
 
-            <div className="bg-nebula-surface_container_lowest p-8 rounded-2xl border border-white/5 shadow-2xl space-y-8">
+            <div className="bg-nebula-surface_container_lowest p-8 rounded-2xl shadow-2xl space-y-8">
               {dataSource === 'file' && (
                 <div className="bg-nebula-surface_container/30 rounded-xl p-12 text-center hover:bg-nebula-surface_container/50 transition-all cursor-pointer group relative overflow-hidden border-2 border-dashed border-nebula-outline/20">
                     <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" id="file-upload" />
@@ -429,7 +429,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
 
             {/* Stats DNA Section */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              <div className="bg-nebula-surface_container p-8 rounded-2xl border border-white/5 space-y-4 relative overflow-hidden group">
+              <div className="bg-nebula-surface_container p-8 rounded-2xl space-y-4 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-nebula-primary/10 blur-3xl -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-1000"></div>
                 <p className="text-[10px] font-mono text-nebula-outline uppercase tracking-widest">Numerical Entries</p>
                 <p className="text-5xl font-display font-medium text-nebula-on_surface tracking-tighter">{analysis.stats.numerical_entries.toLocaleString()}</p>
@@ -437,18 +437,18 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                     <div className="absolute inset-0 bg-nebula-primary shadow-[0_0_10px_#c3f5ff] animate-pulse"></div>
                 </div>
               </div>
-              <div className="bg-nebula-surface_container p-8 rounded-2xl border border-white/5 space-y-4 relative overflow-hidden group">
+              <div className="bg-nebula-surface_container p-8 rounded-2xl space-y-4 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-nebula-primary/10 blur-3xl -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-1000"></div>
                 <p className="text-[10px] font-mono text-nebula-outline uppercase tracking-widest">Character Count</p>
                 <p className="text-5xl font-display font-medium text-nebula-on_surface tracking-tighter">{analysis.stats.character_count.toLocaleString()}</p>
                 <div className="h-[2px] w-full bg-nebula-primary/20 relative rounded-full"></div>
               </div>
-              <div className="bg-nebula-surface_container p-8 rounded-2xl border border-white/5 space-y-4 relative overflow-hidden group">
+              <div className="bg-nebula-surface_container p-8 rounded-2xl space-y-4 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-nebula-primary/10 blur-3xl -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-1000"></div>
                 <p className="text-[10px] font-mono text-nebula-outline uppercase tracking-widest">Numerical Features</p>
                 <p className="text-5xl font-display font-medium text-nebula-on_surface tracking-tighter">{analysis.stats.num_features}</p>
               </div>
-              <div className="bg-nebula-surface_container p-8 rounded-2xl border border-white/5 space-y-4 relative overflow-hidden group">
+              <div className="bg-nebula-surface_container p-8 rounded-2xl space-y-4 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-nebula-primary/10 blur-3xl -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-1000"></div>
                 <p className="text-[10px] font-mono text-nebula-outline uppercase tracking-widest">Categorical Features</p>
                 <p className="text-5xl font-display font-medium text-nebula-on_surface tracking-tighter">{analysis.stats.cat_features}</p>
@@ -458,7 +458,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
             {/* Graphs Display */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
               {analysis.plots.map((plot: string) => (
-                <div key={plot} className="group relative overflow-hidden bg-nebula-surface_container rounded-xl transition-all duration-700 hover:-translate-y-2 border border-white/5">
+                <div key={plot} className="group relative overflow-hidden bg-nebula-surface_container rounded-xl transition-all duration-700 hover:-translate-y-2">
                   <div className="p-5 flex justify-between items-center bg-nebula-surface_container_high bg-opacity-50">
                       <span className="text-[9px] font-mono font-bold text-nebula-outline uppercase tracking-[0.3em]">{plot.split('_')[0]} Spectral Plot</span>
                       <div onClick={() => window.open(`${API_BASE_URL}/static/plots/${plot}`, '_blank')} className="w-8 h-8 rounded-lg bg-nebula-surface_container_lowest flex items-center justify-center text-nebula-outline hover:text-nebula-primary transition-all">
@@ -484,15 +484,20 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-              <div className="bg-nebula-surface_container_lowest p-10 rounded-2xl border border-white/5 space-y-10 shadow-2xl">
+              <div className="bg-nebula-surface_container_lowest p-10 rounded-2xl space-y-10 shadow-2xl">
                 <div className="space-y-8">
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Architectural Task</label>
-                    <div className="flex gap-2 p-1 bg-nebula-surface_container_low rounded-lg">
-                      {['classification', 'regression', 'clustering'].map((type) => (
-                        <button key={type} onClick={() => setTaskType(type)} className={`flex-1 py-4 rounded text-[10px] font-mono font-bold uppercase tracking-widest transition-all ${taskType === type ? 'bg-nebula-primary text-nebula-on_primary shadow-lg' : 'text-nebula-on_surface_variant'}`}>{type}</button>
-                      ))}
-                    </div>
+                    <select 
+                      value={taskType} 
+                      onChange={(e) => setTaskType(e.target.value)} 
+                      className="input-nebula w-full font-mono text-xs uppercase tracking-widest"
+                    >
+                      <option value="classification">Classification</option>
+                      <option value="regression">Regression</option>
+                      <option value="clustering">Clustering (PCA)</option>
+                      <option value="time_series">Time Series (ARIMA)</option>
+                    </select>
                   </div>
 
                   {taskType !== 'clustering' && (
@@ -526,7 +531,7 @@ const AdminDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ tok
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-nebula-surface_container rounded-xl border border-white/5">
+                  <div className="flex items-center justify-between p-4 bg-nebula-surface_container rounded-xl">
                       <div className="space-y-1">
                           <p className="text-[10px] font-mono font-bold text-nebula-on_surface uppercase tracking-widest">Neural Optimization</p>
                           <p className="text-[8px] text-nebula-outline uppercase">Automated Model Selection & Tuning</p>

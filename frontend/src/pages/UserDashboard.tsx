@@ -425,11 +425,16 @@ const UserDashboard: React.FC<{ token: string; onLogout: () => void }> = ({ toke
                 <div className="space-y-8">
                   <div>
                     <label className="text-[10px] font-mono font-bold text-nebula-outline uppercase tracking-widest mb-4 block">Architectural Task</label>
-                    <div className="flex gap-2 p-1 bg-nebula-surface_container_low rounded-lg">
-                      {['classification', 'regression', 'clustering'].map((type) => (
-                        <button key={type} onClick={() => setTaskType(type)} className={`flex-1 py-4 rounded text-[10px] font-mono font-bold uppercase tracking-widest transition-all ${taskType === type ? 'bg-nebula-primary text-nebula-on_primary shadow-lg' : 'text-nebula-on_surface_variant'}`}>{type}</button>
-                      ))}
-                    </div>
+                    <select 
+                      value={taskType} 
+                      onChange={(e) => setTaskType(e.target.value)} 
+                      className="input-nebula w-full font-mono text-xs uppercase tracking-widest"
+                    >
+                      <option value="classification">Classification</option>
+                      <option value="regression">Regression</option>
+                      <option value="clustering">Clustering (PCA)</option>
+                      <option value="time_series">Time Series (ARIMA)</option>
+                    </select>
                   </div>
 
                   {taskType !== 'clustering' && (

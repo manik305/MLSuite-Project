@@ -1,0 +1,57 @@
+services:
+  # ---------------------------------------------------------------------------
+  # 1. Backend Service (FastAPI + ML Engine)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: mlsuite-backend
+    env: docker
+    plan: starter # Starter plan required for Persistent Disks
+    region: ohio   # Change to your preferred region
+    dockerContext: .
+    dockerfilePath: backend/Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: NANODB_PATH
+        value: /app/data/nanodb.json
+      - key: UPLOAD_DIR
+        value: /app/data/uploads
+      - key: STATIC_DIR
+        value: /app/data/plots
+      - key: MODELS_DIR
+        value: /app/data/models
+      - key: CORS_ORIGINS
+        value: "*" # Recommended: Update this with your frontend URL after first deploy
+    disk:
+      name: mlsuite-storage
+      mountPath: /app/data
+      sizeGB: 1
+
+  # ---------------------------------------------------------------------------
+  # 2. Frontend Service (React + Vite)
+  # ---------------------------------------------------------------------------
+  - type: static
+    name: mlsuite-frontend
+    env: node
+    plan: free
+    region: ohio
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    rootContext: frontend
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: mlsuite-backend
+          property: url
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

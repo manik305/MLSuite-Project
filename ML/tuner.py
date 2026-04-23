@@ -19,7 +19,9 @@ class MLTuner:
             'SVR': {'C': [0.1, 1, 10], 'epsilon': [0.01, 0.1, 1]},
             'K-Means': {'n_clusters': [2, 3, 4, 5, 6]},
             'DBSCAN': {'eps': [0.3, 0.5, 0.7], 'min_samples': [3, 5, 10]},
-            'Agglomerative': {'n_clusters': [2, 3, 4, 5, 6]}
+            'Agglomerative': {'n_clusters': [2, 3, 4, 5, 6]},
+            'PCA': {'n_components': [2, 3, 5]},
+            'ARIMA': {'p': [1, 2], 'd': [1], 'q': [1]}
         }
         return grids.get(model_name, {})
 
@@ -40,6 +42,9 @@ class MLTuner:
             collector = RegressionModels()
         elif task_type == 'clustering':
             collector = ClusteringModels()
+        elif task_type == 'time_series':
+            from ML.models.time_series import TimeSeriesModels
+            collector = TimeSeriesModels()
         else:
             raise ValueError("Unsupported task type")
             
@@ -69,18 +74,27 @@ class MLTuner:
                 for params in params_list:
                     model = clone(base_predictor)
                     model.set_params(**params)
-                    if model_name == 'DBSCAN':
+                    
+                    if model_name == 'PCA':
+                        model.fit(X_all)
+                        # For PCA, use Explained Variance as a surrogate score for comparison
+                        score = np.sum(model.explained_variance_ratio_)
+                        labels = None
+                    elif model_name == 'DBSCAN':
                         labels = model.fit_predict(X_all)
+                        unique_labels = np.unique(labels)
+                        if len(unique_labels) > 1 and len(unique_labels) < len(X_all):
+                            score = silhouette_score(X_all, labels)
+                        else:
+                            score = -1.0
                     else:
                         model.fit(X_all)
                         labels = model.labels_
-                        
-                    unique_labels = np.unique(labels)
-                    if len(unique_labels) > 1 and len(unique_labels) < len(X_all):
-                        score = silhouette_score(X_all, labels)
-                    else:
-                        # Heavy penalty if it finds 1 cluster or everything is noise
-                        score = -1.0 
+                        unique_labels = np.unique(labels)
+                        if len(unique_labels) > 1 and len(unique_labels) < len(X_all):
+                            score = silhouette_score(X_all, labels)
+                        else:
+                            score = -1.0
                         
                     if score > best_score:
                         best_score = score
@@ -97,7 +111,7 @@ class MLTuner:
                     'model_name': model_name,
                     'score': round(best_score, 4),
                     'error_rate': 0.0,
-                    'metric_name': 'Silhouette Score',
+                    'metric_name': 'Variance Explained' if model_name == 'PCA' else 'Silhouette Score',
                     'mae': None,
                     'rmse': None,
                     'best_params': best_params_val,
@@ -115,6 +129,33 @@ class MLTuner:
                 if entry['model_name'] == winner_name:
                     entry['is_winner'] = True
                     break
+
+            return {
+                'leaderboard': leaderboard,
+                'winner_name': winner_name,
+                'best_model': winner_model,
+                'task_type': task_type
+            }
+
+        if task_type == 'time_series':
+            # Simplified ARIMA comparison for now
+            for model_name in collector.get_model_list():
+                # For ARIMA we use AIC as the metric
+                res = collector.train_and_eval(y_train, selected_model=model_name)
+                metrics = res[model_name]
+                
+                leaderboard.append({
+                    'model_name': model_name,
+                    'score': metrics['AIC'], # Lower is better, but tuner expects higher is better?
+                    'error_rate': metrics['BIC'],
+                    'metric_name': 'AIC',
+                    'mae': None,
+                    'rmse': None,
+                    'best_params': {'order': (1,1,1)},
+                    'is_winner': True
+                })
+                winner_name = model_name
+                winner_model = metrics['fitted_model']
 
             return {
                 'leaderboard': leaderboard,
