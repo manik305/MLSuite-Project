@@ -42,7 +42,7 @@ services:
     plan: free
     region: ohio
     buildCommand: npm install && npm run build
-    publishDir: ./dist
+    staticPublishPath: ./dist
     rootDir: frontend
     autoDeploy: true
     envVars:
