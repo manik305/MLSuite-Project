@@ -36,7 +36,7 @@ services:
   # ---------------------------------------------------------------------------
   # 2. Frontend Service (React + Vite)
   # ---------------------------------------------------------------------------
-  - type: static
+  - type: web
     name: mlsuite-frontend
     env: node
     plan: free
