@@ -42,8 +42,8 @@ services:
     plan: free
     region: ohio
     buildCommand: npm install && npm run build
-    publishDir: dist
-    rootContext: frontend
+    publishDir: ./dist
+    rootDir: frontend
     autoDeploy: true
     envVars:
       - key: VITE_API_BASE_URL
