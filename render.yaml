@@ -38,19 +38,19 @@ services:
   # ---------------------------------------------------------------------------
   - type: web
     name: mlsuite-frontend
-    env: node
+    env: static # Fixed: Static sites must use 'static' environment
     plan: free
     region: ohio
     buildCommand: npm install && npm run build
-    staticPublishPath: ./dist
-    rootDir: frontend
+    publishDir: dist
+    rootContext: frontend
     autoDeploy: true
     envVars:
       - key: VITE_API_BASE_URL
         fromService:
           type: web
           name: mlsuite-backend
-          property: url
+          property: host
     routes:
       - type: rewrite
         source: /*
